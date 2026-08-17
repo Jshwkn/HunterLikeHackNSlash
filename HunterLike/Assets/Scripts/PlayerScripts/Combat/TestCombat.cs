@@ -1,47 +1,71 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-
+using System.Collections;
 [RequireComponent(typeof(Animator))]
 public class PlayerCombat : MonoBehaviour
-{
-    [SerializeField] private PlayerMovement movement;
-    [SerializeField] private Collider weaponHitbox; // trigger collider on the weapon, disabled by default
-
+{   
     public Animator animator;
-    private InputAction attackAction;
-    private bool isAttacking;
+    public Collider attackCollider;
+    public PlayerInput playerInput;
+
+    [SerializeField] private float attackCooldown = 0.5f;
+    [SerializeField] private float hitboxActiveDuration = 0.15f;
+
+    private float nextAttackTime;
+    private Coroutine hitboxRoutine;
 
     private void Awake()
     {
-        
-        attackAction = new InputAction("Attack", InputActionType.Button, "<Mouse>/leftButton");
-        weaponHitbox.enabled = false;
+        animator.Play("Idle");  
+
     }
-
-    private void OnEnable() { attackAction.Enable(); }
-    private void OnDisable() { attackAction.Disable(); }
-
     private void Update()
     {
-        if (!isAttacking && attackAction.WasPressedThisFrame())
-            animator.SetTrigger("Swing1");
+        Attack();
     }
 
-    // Called by AttackStateBehaviour.OnStateEnter
-    public void OnAttackAnimationStart()
+    private void Attack()
     {
-        isAttacking = true;
-        movement.SetMovementLocked(true);
+        if (!playerInput.actions["Attack"].triggered)
+            return;
+
+        if (Time.time < nextAttackTime)
+            return; // still on cooldown, ignore input
+
+        nextAttackTime = Time.time + attackCooldown;
+
+        
+        animator.Play("Swing1", 0, 0f);
+
+        if (attackRoutine != null)
+            StopCoroutine(attackRoutine);
+        attackRoutine = StartCoroutine(ReturnToIdleAfterAttack());
+
+        if (hitboxRoutine != null)
+            StopCoroutine(hitboxRoutine);
+        hitboxRoutine = StartCoroutine(ActivateHitbox());
     }
 
-    // Called by AttackStateBehaviour.OnStateExit
-    public void OnAttackAnimationEnd()
+    private Coroutine attackRoutine;
+
+   
+
+    private IEnumerator ReturnToIdleAfterAttack()
     {
-        isAttacking = false;
-        movement.SetMovementLocked(false);
+       
+        yield return null;
+
+        float clipLength = animator.GetCurrentAnimatorStateInfo(0).length;
+        yield return new WaitForSeconds(clipLength);
+
+        animator.Play("Idle");
     }
 
-    // Called by an Animation Event placed on the clip's timeline
-    public void EnableWeaponHitbox() => weaponHitbox.enabled = true;
-    public void DisableWeaponHitbox() => weaponHitbox.enabled = false;
+    private IEnumerator ActivateHitbox()
+    {
+        attackCollider.enabled = true;
+        yield return new WaitForSeconds(hitboxActiveDuration);
+        attackCollider.enabled = false;
+    }
+
 }
