@@ -8,6 +8,8 @@ public class PlayerCombat : MonoBehaviour
     public Collider attackCollider;
     public PlayerInput playerInput;
 
+    public WeaponData currentWeapon;
+
     [SerializeField] private float attackCooldown = 0.5f;
     [SerializeField] private float hitboxActiveDuration = 0.15f;
 
@@ -30,12 +32,14 @@ public class PlayerCombat : MonoBehaviour
             return;
 
         if (Time.time < nextAttackTime)
-            return; // still on cooldown, ignore input
+            return; 
+        
+        currentWeapon.behaviour.OnAttackInput(this);
 
         nextAttackTime = Time.time + attackCooldown;
 
         
-        animator.Play("Swing1", 0, 0f);
+        
 
         if (attackRoutine != null)
             StopCoroutine(attackRoutine);
@@ -66,6 +70,13 @@ public class PlayerCombat : MonoBehaviour
         attackCollider.enabled = true;
         yield return new WaitForSeconds(hitboxActiveDuration);
         attackCollider.enabled = false;
+    }
+
+
+    public void EquipWeapon(WeaponData Katana)
+    {
+        currentWeapon = Katana;
+        animator.runtimeAnimatorController = Katana.animatorOverride;
     }
 
 }
